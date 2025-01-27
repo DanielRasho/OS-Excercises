@@ -2,16 +2,15 @@
 #include <unistd.h>
 
 int main() {
-    printf("Hello World!\n");
-        printf("Parent Process: %d\n", (int) getpid());
-    
+
     int f = fork();
         
     if (f == 0) {
-        execl("a.out", (char*)NULL);
+        execl("./a", (char*)NULL);
     } else {
-        printf("Child Process: %d\n", (int) getpid());
-        execl("a.out", (char*)NULL);
+        printf("Parent Process: %d\n", (int) getpid());
+        execl("./a", (char*)NULL);
+        printf("NOthing printing");
     }
     return 0;
 }
