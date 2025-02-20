@@ -18,6 +18,7 @@ $(BIN_DIR)/%.c: %.c | $(BIN_DIR)
 
 # Run a specific file (ensures it's built first)
 run: build
+	@chmod +x $(BIN_DIR)/$(basename $(notdir $(file))) # Ensure it's executable
 	@$(BIN_DIR)/$(basename $(notdir $(file)))
 
 # Clean all compiled executables
