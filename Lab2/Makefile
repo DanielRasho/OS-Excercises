@@ -1,6 +1,6 @@
 # Compiler and flags
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11
+CFLAGS = -Wall -Wextra -std=c11 -D_XOPEN_SOURCE=500
 LDFLAGS = 
 
 # Directories
@@ -19,7 +19,7 @@ $(BIN_DIR)/%.c: %.c | $(BIN_DIR)
 # Run a specific file (ensures it's built first)
 run: build
 	@chmod +x $(BIN_DIR)/$(basename $(notdir $(file))) # Ensure it's executable
-	@$(BIN_DIR)/$(basename $(notdir $(file)))
+	@$(BIN_DIR)/$(basename $(notdir $(file))) $(ARGS)
 
 # Clean all compiled executables
 clean:
