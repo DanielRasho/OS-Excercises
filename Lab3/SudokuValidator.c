@@ -5,8 +5,15 @@
 
 #define BOARD_SIZE 81
 
-int main() {
-    int addr = open("sudoku.txt", O_RDONLY);
+int board [9][9];
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <sudoku_file>\n", argv[0]);
+        return 1;
+    }
+
+    int addr = open(argv[1], O_RDONLY);
     if (addr == -1) {
         perror("open");
         return 1;
@@ -18,8 +25,6 @@ int main() {
         close(addr);
         return 1;
     }
-    
-    int board [9][9];
 
     char *data = (char *)file;
     for (int i = 0; i < BOARD_SIZE; i++) {
