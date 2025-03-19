@@ -1,6 +1,6 @@
 # Compiler and flags
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -D_XOPEN_SOURCE=500
+CFLAGS = -Wall -Wextra -std=c11 -D_XOPEN_SOURCE=500 -fopenmp
 LDFLAGS = 
 
 # Directories

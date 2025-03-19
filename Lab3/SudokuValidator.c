@@ -7,6 +7,7 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <omp.h>
 
 #define BOARD_SIZE 81
 
@@ -28,42 +29,54 @@ int isValidValueInSubGrid(int row, int column) {
     return (countOcurrences == 1) ? 1 : 0;
 }
 
-void* checkColumns(void* vargp) {
-    for (int col = 0 ; col < 9; col ++ ) {
+void* checkColumns() {
+    int isValid = 1; 
+
+    #pragma omp parallel for
+    for (int col = 0; col < 9; col++) {
         int digits[9] = { 1, 1, 1 , 1 ,1 ,1 ,1, 1, 1 };
         pid_t tid = syscall(SYS_gettid);
         printf("Revisando columna %d, thread: %d\n", col, (int) tid);
+
         for(int row = 0; row < 9; row++) {
             int index = board[row][col] - 1;
             digits[index] = 1 - digits[index];
         }
-        for (int a = 0; a < 9; a++ ) {
+
+        for (int a = 0; a < 9; a++) {
             if (digits[a] == 1) {
-                return (void *)0;
+                isValid = 0; 
+                break; 
             }
         }
     }
 
-    return (void *)1;
+    return (void *)isValid; 
 }
 
-void* checkRows(void* vargp) {
+void* checkRows() {
+    int isValid = 1; 
+
+    #pragma omp parallel for
     for(int row = 0; row < 9; row++) {
         int digits[9] = { 1, 1, 1 , 1 ,1 ,1 ,1, 1, 1 };
         pid_t tid = syscall(SYS_gettid);
         printf("Revisando fila %d, thread: %d\n", row, (int) tid);
-        for (int col = 0 ; col < 9; col ++ ) {
+
+        for (int col = 0; col < 9; col++) {
             int index = board[row][col] - 1;
             digits[index] = 1 - digits[index];
         }
-        for (int a = 0; a < 9; a++ ) {
+
+        for (int a = 0; a < 9; a++) {
             if (digits[a] == 1) {
-                return (void *)0;
+                isValid = 0; 
+                break; 
             }
         }
     }
 
-    return (void *)1;
+    return (void *)(intptr_t)isValid; 
 }
 
 int main(int argc, char *argv[]) {
@@ -125,6 +138,8 @@ int main(int argc, char *argv[]) {
         snprintf(pid_str, sizeof(pid_str), "%d", parent_pid);
         execlp("ps", "ps", "-p", pid_str, "-lLf", (char *)NULL);
     } else {
+        
+        // Validate columns
         wait(NULL);
         printf("Revisando columnas");
         pthread_t thread_id;
@@ -132,12 +147,20 @@ int main(int argc, char *argv[]) {
         pthread_create(&thread_id, NULL, checkColumns, NULL);
         int result = pthread_join(thread_id, (void *)&exitStatus);
 
-        printf("exit status: %d\n", exitStatus);
+        if (exitStatus == 0 ) {
+            printf("INVALID COLUMNS");
+            return 1;
+        }
 
+        // Validate rows
         printf("Revisando filas");
         pthread_create(&thread_id, NULL, checkRows, NULL);
         pthread_join(thread_id, (void *)&exitStatus);
-        printf("exit status: %d\n", exitStatus);
+
+        if (exitStatus == 0 ) {
+            printf("INVALID COLUMNS");
+            return 1;
+        }
 
     }
 
