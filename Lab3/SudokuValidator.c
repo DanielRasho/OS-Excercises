@@ -1,7 +1,11 @@
+#define _GNU_SOURCE
+#include <pthread.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
 
 #define BOARD_SIZE 81
 
@@ -21,6 +25,44 @@ int isValidValueInSubGrid(int row, int column) {
         }
     }
     return (countOcurrences == 1) ? 1 : 0;
+}
+
+void* checkColumns(void* vargp) {
+    for (int col = 0 ; col < 9; col ++ ) {
+        int digits[9] = { 1, 1, 1 , 1 ,1 ,1 ,1, 1, 1 };
+        pid_t tid = syscall(SYS_gettid);
+        printf("Revisando columna %d, thread: %d\n", col, (int) tid);
+        for(int row = 0; row < 9; row++) {
+            int index = board[row][col] - 1;
+            digits[index] = 1 - digits[index];
+        }
+        for (int a = 0; a < 9; a++ ) {
+            if (digits[a] == 1) {
+                return (void *)0;
+            }
+        }
+    }
+
+    return (void *)1;
+}
+
+void* checkRows(void* vargp) {
+    for(int row = 0; row < 9; row++) {
+        int digits[9] = { 1, 1, 1 , 1 ,1 ,1 ,1, 1, 1 };
+        pid_t tid = syscall(SYS_gettid);
+        printf("Revisando fila %d, thread: %d\n", row, (int) tid);
+        for (int col = 0 ; col < 9; col ++ ) {
+            int index = board[row][col] - 1;
+            digits[index] = 1 - digits[index];
+        }
+        for (int a = 0; a < 9; a++ ) {
+            if (digits[a] == 1) {
+                return (void *)0;
+            }
+        }
+    }
+
+    return (void *)1;
 }
 
 int main(int argc, char *argv[]) {
@@ -65,7 +107,7 @@ int main(int argc, char *argv[]) {
         int column = i % 9;
         int isCellValid = isValidValueInSubGrid(row, column);
         if (isCellValid == 0) {
-            fprintf(stderr, "Sudoku board is invalid on position: (%d, %d)\n", row, column);
+            fprintf(stderr, "Sudoku board is invalid on position: (%d, %d)\n", column + 1, row + 1);
             return 1;
         }
     }
@@ -81,6 +123,20 @@ int main(int argc, char *argv[]) {
         char pid_str[10];
         snprintf(pid_str, sizeof(pid_str), "%d", parent_pid);
         execlp("ps", "ps", "-p", pid_str, "-lLf", (char *)NULL);
+    } else {
+        printf("Revisando columnas");
+        pthread_t thread_id;
+        int exitStatus = 0;
+        pthread_create(&thread_id, NULL, checkColumns, NULL);
+        int result = pthread_join(thread_id, (void *)&exitStatus);
+
+        printf("exit status: %d\n", exitStatus);
+
+        printf("Revisando filas");
+        pthread_create(&thread_id, NULL, checkRows, NULL);
+        pthread_join(thread_id, (void *)&exitStatus);
+        printf("exit status: %d\n", exitStatus);
+
     }
 
     return 0;
