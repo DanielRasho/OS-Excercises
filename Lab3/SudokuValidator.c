@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 #define BOARD_SIZE 81
 
@@ -124,6 +125,7 @@ int main(int argc, char *argv[]) {
         snprintf(pid_str, sizeof(pid_str), "%d", parent_pid);
         execlp("ps", "ps", "-p", pid_str, "-lLf", (char *)NULL);
     } else {
+        wait(NULL);
         printf("Revisando columnas");
         pthread_t thread_id;
         int exitStatus = 0;
@@ -139,5 +141,17 @@ int main(int argc, char *argv[]) {
 
     }
 
+    pid_t child_pid2 = fork();
+    if (child_pid2 < 0) {
+        perror("Fork failed");
+        return 1;
+    }
+
+    if (child_pid2 == 0) {
+        char pid_str[10];
+        snprintf(pid_str, sizeof(pid_str), "%d", parent_pid);
+        execlp("ps", "ps", "-p", pid_str, "-lLf", (char *)NULL);
+    }
+    wait(NULL);
     return 0;
 }
