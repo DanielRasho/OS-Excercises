@@ -32,7 +32,9 @@ int isValidValueInSubGrid(int row, int column) {
 void* checkColumns() {
     int isValid = 1; 
 
-    #pragma omp parallel for
+    omp_set_nested(1);
+    omp_set_num_threads(9);
+    #pragma omp parallel for schedule(dynamic)
     for (int col = 0; col < 9; col++) {
         int digits[9] = { 1, 1, 1 , 1 ,1 ,1 ,1, 1, 1 };
         pid_t tid = syscall(SYS_gettid);
@@ -56,8 +58,9 @@ void* checkColumns() {
 
 void* checkRows() {
     int isValid = 1; 
-
-    #pragma omp parallel for
+    omp_set_nested(1);
+    omp_set_num_threads(9);
+    #pragma omp parallel for schedule(dynamic)
     for(int row = 0; row < 9; row++) {
         int digits[9] = { 1, 1, 1 , 1 ,1 ,1 ,1, 1, 1 };
         pid_t tid = syscall(SYS_gettid);
@@ -79,7 +82,15 @@ void* checkRows() {
     return (void *)(intptr_t)isValid; 
 }
 
+void checkProcessInfo(pid_t pid) {
+    int stringSize = 10;
+    char pid_str[stringSize];
+    sprintf(pid_str, "%d", pid);
+    execlp("ps", "ps", "-p", pid_str, "-lLf", (char *)NULL);
+}
+
 int main(int argc, char *argv[]) {
+    omp_set_num_threads(1);
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <sudoku_file>\n", argv[0]);
         return 1;
@@ -134,47 +145,44 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     if (child_pid == 0) {
-        char pid_str[10];
-        snprintf(pid_str, sizeof(pid_str), "%d", parent_pid);
-        execlp("ps", "ps", "-p", pid_str, "-lLf", (char *)NULL);
-    } else {
+        checkProcessInfo(parent_pid);
+    }
         
-        // Validate columns
-        wait(NULL);
-        printf("Revisando columnas");
-        pthread_t thread_id;
-        int exitStatus = 0;
-        pthread_create(&thread_id, NULL, checkColumns, NULL);
-        int result = pthread_join(thread_id, (void *)&exitStatus);
+    // Validate columns
+    wait(NULL);
+    printf("Revisando columnas");
+    pthread_t thread_id;
+    int exitStatus = 0;
+    pthread_create(&thread_id, NULL, checkColumns, NULL);
+    int result = pthread_join(thread_id, (void *)&exitStatus);
 
-        if (exitStatus == 0 ) {
-            printf("INVALID COLUMNS");
-            return 1;
-        }
-
-        // Validate rows
-        printf("Revisando filas");
-        pthread_create(&thread_id, NULL, checkRows, NULL);
-        pthread_join(thread_id, (void *)&exitStatus);
-
-        if (exitStatus == 0 ) {
-            printf("INVALID COLUMNS");
-            return 1;
-        }
-
+    if (exitStatus == 0 ) {
+        printf("INVALID COLUMNS");
+        return 1;
     }
 
+    // Validate rows
+    printf("Revisando filas");
+    pthread_create(&thread_id, NULL, checkRows, NULL);
+
     pid_t child_pid2 = fork();
+    
+    pthread_join(thread_id, (void *)&exitStatus);
+
+    if (exitStatus == 0 ) {
+        printf("INVALID ROWS");
+        return 1;
+    }
+
     if (child_pid2 < 0) {
         perror("Fork failed");
         return 1;
     }
 
     if (child_pid2 == 0) {
-        char pid_str[10];
-        snprintf(pid_str, sizeof(pid_str), "%d", parent_pid);
-        execlp("ps", "ps", "-p", pid_str, "-lLf", (char *)NULL);
+        checkProcessInfo(parent_pid);
     }
+
     wait(NULL);
     return 0;
 }
